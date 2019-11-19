@@ -27,6 +27,7 @@
 """
 
 import os
+import io
 import shutil       # for file operations like whole directory deletion
 import sys          # for proccessing of command line args
 import urllib       # for parsing filename information passed by DnD
@@ -36,7 +37,7 @@ from copy import copy
 
 import locale       #for multilanguage support
 import gettext
-gettext.install('pdfshuffler', unicode=1)
+gettext.install('pdfshuffler')
 _ = gettext.gettext
 
 APPNAME = 'PdfShuffler' # PDF-Shuffler, PDFShuffler, pdfshuffler
@@ -58,6 +59,7 @@ except:
     sys.exit(1)
 
 from gi.repository import Gdk
+from gi.repository import GLib
 from gi.repository import GObject      # for using custom signals
 from gi.repository import Pango        # for adjusting the text alignment in CellRendererText
 from gi.repository import Gio          # for inquiring mime types information
@@ -75,9 +77,17 @@ GObject.type_register(CellRendererImage)
 import time
 
 class PdfShuffler:
+    display = Gdk.Display.get_default()
+    monitor = display.get_primary_monitor()
+    geometry = monitor.get_geometry()
+
+    scale_factor = monitor.get_scale_factor()
+    width = scale_factor * geometry.width
+    height = scale_factor * geometry.height
+
     prefs = {
-        'window width': min(700, Gdk.Screen.get_default().get_width() / 2),
-        'window height': min(600, Gdk.Screen.get_default().get_height() - 50),
+        'window width': min(700, width / 2),
+        'window height': min(600, height - 50),
         'window x': 0,
         'window y': 0,
         'initial thumbnail size': 300,
@@ -97,7 +107,7 @@ class PdfShuffler:
     def __init__(self):
         # Create the temporary directory
         self.tmp_dir = tempfile.mkdtemp("pdfshuffler")
-        os.chmod(self.tmp_dir, 0700)
+        os.chmod(self.tmp_dir, 0o700)
 
         icon_theme = Gtk.IconTheme.get_default()
         try:
@@ -174,7 +184,7 @@ class PdfShuffler:
         self.zoom_set(self.prefs['initial zoom level'])
         self.iv_col_width = self.prefs['initial thumbnail size']
 
-        self.iconview = Gtk.IconView(self.model)
+        self.iconview = Gtk.IconView(model = self.model)
         self.iconview.clear()
         self.iconview.set_item_width(-1) #self.iv_col_width + 12)
 
@@ -296,11 +306,11 @@ class PdfShuffler:
         if self.progress_bar_timeout_id:
             GObject.source_remove(self.progress_bar_timeout_id)
         self.progress_bar_timout_id = \
-            GObject.timeout_add(50, self.progress_bar_timeout)
+            GLib.timeout_add(50, self.progress_bar_timeout)
 
     def set_unsaved(self, flag):
         self.is_unsaved = flag
-        GObject.idle_add(self.retitle)
+        GLib.idle_add(self.retitle)
 
     def retitle(self):
         title = ''
@@ -334,7 +344,7 @@ class PdfShuffler:
             self.progress_bar.show()
 
         return True
-  
+
     def update_thumbnail(self, object, num, thumbnail, resample):
         row = self.model[num]
         row[13] = resample
@@ -459,9 +469,9 @@ class PdfShuffler:
             res = True
 
         self.reset_iv_width()
-        GObject.idle_add(self.retitle)
+        GLib.idle_add(self.retitle)
         if res:
-            GObject.idle_add(self.render)
+            GLib.idle_add(self.render)
         return res
 
     def choose_export_pdf_name(self, widget=None, only_selected=False):
@@ -497,7 +507,7 @@ class PdfShuffler:
                     self.export_to_file(file_out, only_selected)
                     self.export_directory = path
                     self.set_unsaved(False)
-                except Exception, e:
+                except Exception as e:
                     chooser.destroy()
                     self.error_message_dialog(e)
                     return
@@ -514,7 +524,7 @@ class PdfShuffler:
         pdf_output = PdfFileWriter()
         pdf_input = []
         for pdfdoc in self.pdfqueue:
-            pdfdoc_inp = PdfFileReader(file(pdfdoc.copyname, 'rb'))
+            pdfdoc_inp = PdfFileReader(io.FileIO(pdfdoc.copyname, 'rb'))
             if pdfdoc_inp.getIsEncrypted():
                 try: # Workaround for lp:#355479
                     stat = pdfdoc_inp.decrypt('')
@@ -524,7 +534,7 @@ class PdfShuffler:
                     errmsg = _('File %s is encrypted.\n'
                                'Support for encrypted files has not been implemented yet.\n'
                                'File export failed.') % pdfdoc.filename
-                    raise Exception, errmsg
+                    raise Exception(errmsg)
                 #FIXME
                 #else
                 #   ask for password and decrypt file
@@ -549,7 +559,7 @@ class PdfShuffler:
                 crop_init = crop
                 if rotate_times != 0:
                     perm = [0,2,1,3]
-                    for it in range(rotate_times):
+                    for it in range(int(rotate_times)):
                         perm.append(perm.pop(0))
                     perm.insert(1,perm.pop(2))
                     crop = [crop_init[perm[side]] for side in range(4)]
@@ -569,7 +579,7 @@ class PdfShuffler:
             pdf_output.addPage(current_page)
 
         # finally, write "output" to document-output.pdf
-        pdf_output.write(file(file_out, 'wb'))
+        pdf_output.write(io.FileIO(file_out, 'wb'))
 
     def on_action_add_doc_activate(self, widget, data=None):
         """Import doc"""
@@ -615,14 +625,14 @@ class PdfShuffler:
                             print(_('File type not supported!'))
                     else:
                         print(_('File %s does not exist') % filename)
-                except Exception, e:
+                except Exception as e:
                     chooser.destroy()
                     self.error_message_dialog(e)
                     return
         elif response == Gtk.ResponseType.CANCEL:
             print(_('Closed, no files selected'))
         chooser.destroy()
-        GObject.idle_add(self.retitle)
+        GLib.idle_add(self.retitle)
 
     def clear_selected(self, button=None):
         """Removes the selected elements in the IconView"""
@@ -855,9 +865,9 @@ class PdfShuffler:
                 try:
                     if os.path.isfile(filename): # is it a file?
                         self.add_pdf_pages(filename)
-                except Exception, e:
+                except Exception as e:
                     self.error_message_dialog(e)
-                
+
 
     def sw_button_press_event(self, scrolledwindow, event):
         """Unselects all items in iconview on mouse click in scrolledwindow"""
@@ -933,7 +943,7 @@ class PdfShuffler:
 
                 crop = [0.,0.,0.,0.]
                 perm = [0,2,1,3]
-                for it in range(rotate_times):
+                for it in range(int(rotate_times)):
                     perm.append(perm.pop(0))
                 perm.insert(1,perm.pop(2))
                 crop = [model.get_value(iter, 7 + perm[side]) for side in range(4)]
@@ -1113,19 +1123,18 @@ class PDF_Renderer(threading.Thread,GObject.GObject):
                         cr.scale(1./self.resample, 1./self.resample)
                     page.render(cr)
                     time.sleep(0.003)
-                    GObject.idle_add(self.emit,'update_thumbnail',
+                    GLib.idle_add(self.emit,'update_thumbnail',
                                      idx, thumbnail, self.resample,
-                                     priority=GObject.PRIORITY_LOW)
-                except Exception,e:
-                    print e
+                                     priority=GLib.PRIORITY_LOW)
+                except Exception as e:
+                    print(e)
 
 
 def main():
     """This function starts PdfShuffler"""
-    GObject.threads_init()
+    #GObject.threads_init()
     PdfShuffler()
     Gtk.main()
 
 if __name__ == '__main__':
     main()
-
