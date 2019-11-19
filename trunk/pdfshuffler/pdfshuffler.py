@@ -977,7 +977,9 @@ class PdfShuffler:
         dialog.set_size_request(340, 250)
         dialog.set_default_response(Gtk.ResponseType.OK)
 
-        frame = Gtk.Frame(_('Crop Margins'))
+        frame = Gtk.Frame()
+        frame.set_label(_('Crop Margins'))
+
         dialog.vbox.pack_start(frame, False, False, 20)
 
         vbox = Gtk.VBox(False, 0)
@@ -994,7 +996,8 @@ class PdfShuffler:
             hbox.pack_start(label, True, True, 20)
 
             adj = Gtk.Adjustment(100.*crop.pop(0), 0.0, 99.0, 1.0, 5.0, 0.0)
-            spin = Gtk.SpinButton(adj, 0, 1)
+            spin = Gtk.SpinButton()
+            spin.configure(adjustment = adj, climb_rate= 0,digits= 1)
             spin.set_activates_default(True)
             spin.connect('value-changed', set_crop_value, side)
             spin_list.append(spin)
