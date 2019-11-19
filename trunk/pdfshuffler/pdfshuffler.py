@@ -116,14 +116,15 @@ class PdfShuffler:
             print(_("Can't load icon. Application is not installed correctly."))
 
         # Import the user interface file, trying different possible locations
-        ui_path = '/usr/share/pdfshuffler/pdfshuffler.ui'
-        if not os.path.exists(ui_path):
-            ui_path = '/usr/local/share/pdfshuffler/pdfshuffler.ui'
 
-        if not os.path.exists(ui_path):
-            parent_dir = os.path.dirname( \
+        search_paths = [os.path.abspath(os.path.join(os.path.dirname(__file__),'..','data')), '/usr/share/pdfshuffler/', '/usr/local/share/pdfshuffler/']
+        for path in search_paths:
+            ui_path=os.path.join(path,'pdfshuffler.ui')
+            if os.path.exists(ui_path):
+                break
+
+        parent_dir = os.path.dirname( \
                          os.path.dirname(os.path.realpath(__file__)))
-            ui_path = os.path.join(parent_dir, 'data', 'pdfshuffler.ui')
 
         if not os.path.exists(ui_path):
             head, tail = os.path.split(parent_dir)
