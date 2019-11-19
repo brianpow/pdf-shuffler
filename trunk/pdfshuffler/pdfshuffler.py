@@ -248,11 +248,11 @@ class PdfShuffler:
 
         # Creating the popup menu
         self.popup = Gtk.Menu()
-        labels = (_('_Rotate Right'), _('Rotate _Left'), _('C_rop...'),
-                  _('_Delete'), _('_Export selection...'))
-        cbs = (self.rotate_page_right, self.rotate_page_left,
+        labels = (_('_Rotate Right'), _('Rotate _Left'), _('Rotate _180'), _('C_rop...'),
+                  _('_Delete'), _('_Export selection...'), _('Export _all...'))
+        cbs = (self.rotate_page_right, self.rotate_page_left, self.rotate_page_180,
                self.crop_page_dialog, self.clear_selected,
-               self.choose_export_selection_pdf_name)
+               self.choose_export_selection_pdf_name, self.choose_export_pdf_name)
         for label, cb in zip(labels, cbs):
            popup_item = Gtk.MenuItem.new_with_mnemonic(label)
            popup_item.connect('activate', cb)
@@ -920,6 +920,9 @@ class PdfShuffler:
         elif path.startswith('file:'):     # xffm
             path = path[5:]  # 5 is len('file:')
         return path
+
+    def rotate_page_180(self, widget, data=None):
+        self.rotate_page(180)
 
     def rotate_page_right(self, widget, data=None):
         self.rotate_page(90)
