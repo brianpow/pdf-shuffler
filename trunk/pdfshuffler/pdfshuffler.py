@@ -634,10 +634,39 @@ class PdfShuffler:
             print(_('Closed, no files selected'))
         chooser.destroy()
         GLib.idle_add(self.retitle)
+    def select_all(self, widget = None):
+        self.iconview.select_all()
 
-    def clear_selected(self, button=None):
+    def select_none(self, widget=None):
+        self.iconview.unselect_all()
+
+    def invert_selection(self,widget=None):
+        selection = self.iconview.get_selected_items()
+        self.iconview.select_all()
+        for path in selection:
+            self.iconview.unselect_path(path)
+
+    def select_odd_even(self, reminder):
+        model = self.iconview.get_model()
+        for i, list_store in enumerate(model):
+            if i % 2 == reminder:
+                path = list_store.path
+                self.iconview.select_path(path)
+
+    def select_even(self, widget=None):
+        self.select_odd_even(1)
+
+    def select_odd(self, widget=None):
+        self.select_odd_even(0)
+
+
+    def clear_all(self, widget=None):
+        self.clear_selected(None, True)
+
+    def clear_selected(self, button=None, All=False):
         """Removes the selected elements in the IconView"""
-
+        if All:
+            self.iconview.select_all()
         model = self.iconview.get_model()
         selection = self.iconview.get_selected_items()
         if selection:
